@@ -26,17 +26,19 @@ See `poe.toml` for exact commands
 ## Multi stage build using `sysbuild` [Version 0.1.0+2]
 
 ```bash
-uv run west build -b esp32_devkitc/esp32/procpu -p always example-app --sysbuild -- -DEXTRA_CONF_FILE="transport-serial.conf"
+uv run west build -b esp32_devkitc/esp32/procpu -p always example-app --sysbuild -- \
+ -DEXTRA_CONF_FILE="transport-serial.conf"
 ```
 
 > I have found passing arguments to cmake to be flaky; if more than one it seems to ignore
 
 ```bash
-# use this command to make sure that config from transport-serial.conf made into the final config
+# use this command to make sure that config from
+# transport-serial.conf made into the final config
 grep CONFIG_MCUMGR_TRANSPORT_UART build/example-app/zephyr/.config
 ```
 
-**See the signature dump***
+**See the signature dump**
 
 ```bash
 uv run poe sign-dump
@@ -55,7 +57,9 @@ uv run west espressif monitor
 ## Build a new image with version 0.2.0+3
 
 ```bash
-uv run west build -b esp32_devkitc/esp32/procpu -p always example-app --sysbuild -- '-DEXTRA_CONF_FILE=transport-serial.conf' '-DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION="0.2.0+3"'
+uv run west build -b esp32_devkitc/esp32/procpu -p always example-app --sysbuild -- \
+ '-DEXTRA_CONF_FILE=transport-serial.conf' \
+ '-DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION="0.2.0+3"'
 ```
 
 > Passing cmake extra args is flaky, a good to verify if our intended configs made it or not
@@ -91,7 +95,7 @@ splitStatus: 0
 ```
 
 ```bash
-# upload the new image from upgrade-build directory
+# upload the new image
 uv run smpmgr --port /dev/tty.usbserial-0001 --baudrate 115200 upgrade build/example-app/zephyr/zephyr.signed.bin
 ```
 
@@ -133,7 +137,8 @@ Now we make the image slot1 active
 
 ```bash
 # Change the hash to what you see in slot1
-uv run smpmgr --port /dev/tty.usbserial-0001 --baudrate 115200 image state-write "62828ECB3E52387A7D54C2733413C8438B3B0F9FAA67B991819E5341055333F9"
+# Note import to put "" around the hash (learned the hard way :())
+uv run smpmgr --port /dev/tty.usbserial-0001 --baudrate 115200 image state-write \ "62828ECB3E52387A7D54C2733413C8438B3B0F9FAA67B991819E5341055333F9"
 ```
 
 ```bash
