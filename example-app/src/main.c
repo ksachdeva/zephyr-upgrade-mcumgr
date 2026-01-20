@@ -7,12 +7,16 @@ LOG_MODULE_REGISTER(main);
 
 #define LED0_NODE DT_ALIAS(led0)
 
+#define VERSION_STRING CONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION
+
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
 int main(void)
 {
 	int ret;
 	bool led_state = true;
+
+	printf("========\nVersion:  %s\n========\n\n", VERSION_STRING);
 
 	if (!gpio_is_ready_dt(&led)) {
 		LOG_ERR("Error, gpio is not ready\n");
@@ -34,7 +38,7 @@ int main(void)
 		}
 
 		led_state = !led_state;
-		printf("LED is now: %s\n", led_state ? "ON" : "OFF");
+		// printf("LED is now: %s\n", led_state ? "ON" : "OFF");
 
 		k_msleep(1000);
 	}

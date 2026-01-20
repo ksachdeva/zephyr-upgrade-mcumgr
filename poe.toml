@@ -1,2 +1,17 @@
 [tool.poe.tasks]
 fmt = "ruff format"
+
+[tool.poe.tasks.key-gen]
+sequence = [
+    {cmd = "mkdir -p assets" },
+    { cmd = "deps/bootloader/mcuboot/scripts/imgtool.py keygen --key=assets/bootloader-key.pem -t rsa-2048" },
+    { cmd = "deps/bootloader/mcuboot/scripts/imgtool.py keygen --key=assets/app-key.pem -t rsa-2048" },
+]
+
+[tool.poe.tasks.sign-dump]
+sequence = [
+    { cmd = "echo 'Dumping info for bootloader image:'" },
+    { cmd = "deps/bootloader/mcuboot/scripts/imgtool.py dumpinfo build/mcuboot/zephyr/zephyr.bin" },
+    { cmd = "echo 'Dumping info for application image:'" },
+    { cmd = "deps/bootloader/mcuboot/scripts/imgtool.py dumpinfo build/example-app/zephyr/zephyr.signed.bin" }
+]

@@ -1,117 +1,147 @@
-# zephyr-template
+# Zephyr Upgrade via MCUMgr
 
-This is a template for Zephyr firmware app development that makes use of
-
-- uv [(https://docs.astral.sh/uv/)](https://docs.astral.sh/uv/)
-- poethepoet [(https://poethepoet.natn.io/index.html)](https://poethepoet.natn.io/index.html)
-
-You would generally run commands via `uv` and `poe`
-
-It is also a multi-project setup both for zephyr apps as well as other tools (e.g. python packages, libraries)
-that could sit next to your firmware app(s).
-
-The template has few board overlays for the app (Blinky) -
-
-- ESP32 DevkitC V1
-- nrf52832 DK
-- native_sim (Linux Only)
-- qemu_cortex_m3 (QEMU emulator on macOS)
-
-> Note - Both of these are quite old boards but that is what I have to test with at the moment
-
-The configured zephyr version in the manifest is `v4.3.0`
+## Setup
 
 ```bash
-# setup your virtualenv
 uv sync
 ```
 
 ```bash
-# install pre-commit hooks
+# needed only once
 uv run pre-commit install
-```
-
-### Example / Conventions
-
-```bash
-# example when directly running west command
-uv run west
-
-# example when running some pre-configured commands/tasks via poe
-uv run poe build-app
-```
-
-## Not changing v4.3.0 (the version set in west.yml of this repo)
-
-In this mode, all you have to do is to issue following commands
-
-Below steps are needed once or when you first clone the repo.
-
-```bash
-# do west update
 uv run west update
-```
-
-```bash
-# this would install the SDK corresponding to v4.3.0
 uv run west sdk install
 ```
 
-## Switching to another version of Zephyr
-
-Below steps are needed rarely (as in when you modify the manifest [west.yml]) or when you first clone the repo.
-
-### Step 1
+## Generate key pair
 
 ```bash
-# delete uv.lock
-rm -rf uv.lock
-# delete deps
-rm -rf deps
+uv run poe key-gen
 ```
 
-### Step 2
+This would create RSA 2048 key pairs for MCUBoot & App Firmware
 
-Make a change in `west.yml` file for example change zephyr version and/or include modules that you need.
+See `poe.toml` for exact commands
+
+## Multi stage build using `sysbuild` [Version 0.1.0+2]
 
 ```bash
-uv run west update
+uv run west build -b esp32_devkitc/esp32/procpu -p always example-app --sysbuild -- -DEXTRA_CONF_FILE="transport-serial.conf"
 ```
 
-### Step 3
+> I have found passing arguments to cmake to be flaky; if more than one it seems to ignore
 
 ```bash
-# this would install the SDK corresponding to your version of zephyr
-uv run west sdk install
+# use this command to make sure that config from transport-serial.conf made into the final config
+grep CONFIG_MCUMGR_TRANSPORT_UART build/example-app/zephyr/.config
 ```
 
-### Step 4
+**See the signature dump***
 
 ```bash
-# This should update the dependencies (and uv.lock) as per your version of zephyr
-uv add -r deps/zephyr/scripts/requirements.txt --dev
+uv run poe sign-dump
 ```
 
-## Other commands
-
-```bash
-# See all the commands to run via poe
-uv run poe
-```
-
-### Build firmware
-
-Default board is `esp32_devkitc/esp32/procpu`
-
-```bash
-uv run west build -b nrf52dk/nrf52832 -p always example-app
-uv run west build -b esp32_devkitc/esp32/procpu -p always example-app
-uv run west build -b native_sim -p always example-app
-uv run west build -b qemu_cortex_m3 -p always example-app
-```
-
-### Flash
+### Flash & Monitor
 
 ```bash
 uv run west flash
+```
+
+```bash
+uv run west espressif monitor
+```
+
+## Build a new image with version 0.2.0+3
+
+```bash
+uv run west build -b esp32_devkitc/esp32/procpu -p always example-app --sysbuild -- '-DEXTRA_CONF_FILE=transport-serial.conf' '-DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION="0.2.0+3"'
+```
+
+> Passing cmake extra args is flaky, a good to verify if our intended configs made it or not
+
+```bash
+# verify
+grep CONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION build/example-app/zephyr/.config
+grep CONFIG_MCUMGR_TRANSPORT_UART build/example-app/zephyr/.config
+```
+
+### Upgrade using `smpmgr`
+
+```bash
+# Let's read the state of the image
+# You should only one slot0
+uv run smpmgr --port /dev/tty.usbserial-0001 --baudrate 115200 image state-read
+```
+
+```
+# example output
+ImageState(
+    slot=0,
+    version='0.1.0.2',
+    image=None,
+    hash=HashBytes('3037020FA153516370291611B7EB03D4E268151D9D43736CEDEE4DAD9DA79050'),
+    bootable=True,
+    pending=False,
+    confirmed=True,
+    active=True,
+    permanent=False
+)
+splitStatus: 0
+```
+
+```bash
+# upload the new image from upgrade-build directory
+uv run smpmgr --port /dev/tty.usbserial-0001 --baudrate 115200 upgrade build/example-app/zephyr/zephyr.signed.bin
+```
+
+
+```bash
+# Let's read the state of the image
+# Now we should have slot0 and slot1
+uv run smpmgr --port /dev/tty.usbserial-0001 --baudrate 115200 image state-read
+```
+
+```
+# example output
+ImageState(
+    slot=0,
+    version='0.1.0.2',
+    image=None,
+    hash=HashBytes('3037020FA153516370291611B7EB03D4E268151D9D43736CEDEE4DAD9DA79050'),
+    bootable=True,
+    pending=False,
+    confirmed=True,
+    active=True,
+    permanent=False
+)
+ImageState(
+    slot=1,
+    version='0.2.0.3',
+    image=None,
+    hash=HashBytes('62828ECB3E52387A7D54C2733413C8438B3B0F9FAA67B991819E5341055333F9'),
+    bootable=True,
+    pending=False,
+    confirmed=False,
+    active=False,
+    permanent=False
+)
+splitStatus: 0
+```
+
+Now we make the image slot1 active
+
+```bash
+# Change the hash to what you see in slot1
+uv run smpmgr --port /dev/tty.usbserial-0001 --baudrate 115200 image state-write "62828ECB3E52387A7D54C2733413C8438B3B0F9FAA67B991819E5341055333F9"
+```
+
+```bash
+# use monitor to see the new version
+uv run west espressif monitor
+```
+
+```bash
+# or state-read to see that new image must be active
+uv run smpmgr --port /dev/tty.usbserial-0001 --baudrate 115200 image state-read
 ```

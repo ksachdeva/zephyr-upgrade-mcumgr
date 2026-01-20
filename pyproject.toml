@@ -53,6 +53,7 @@ dev = [
     "reuse>=6.2.0",
     "ruff==0.14.2",
     "semver>=3.0.4",
+    "smpmgr>=0.17.0",
     "spdx-tools>=0.8.3",
     "sphinx-lint>=1.0.2",
     "spsdk>=3.0.0",
@@ -63,7 +64,7 @@ dev = [
     "west>=0.14.0",
     "windows-curses>=2.4.1 ; sys_platform == 'win32'",
     "yamllint>=1.37.1",
-    "zephyr-kconfig>=0.2.0",
+    "zephyr-kconfig>=0.2.1",
 ]
 
 
