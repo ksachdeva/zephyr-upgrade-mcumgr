@@ -7,7 +7,7 @@ uv sync
 ```
 
 ```bash
-# needed only once
+# need to do only once at the time of repo setup
 uv run pre-commit install
 uv run west update
 uv run west sdk install
@@ -30,8 +30,6 @@ See `poe.toml` for exact commands
 ```bash
 uv run west build -b esp32_devkitc/esp32/procpu -p always example-app --sysbuild -- '-DSB_CONFIG_BOOT_SIGNATURE_KEY_FILE="/Users/kapil.sachdeva/Desktop/Dev/myoss/zephyr-upgrade-mcumgr/assets/bootloader-key.pem"' '-DCONFIG_MCUBOOT_SIGNATURE_KEY_FILE="/Users/kapil.sachdeva/Desktop/Dev/myoss/zephyr-upgrade-mcumgr/assets/app-key.pem"' '-DEXTRA_CONF_FILE=transport-serial.conf'
 ```
-
-> I have found passing arguments to cmake to be flaky; if more than one it seems to ignore
 
 ```bash
 # use this command to make sure that config from
@@ -63,8 +61,6 @@ uv run west espressif monitor
 uv run west build -b esp32_devkitc/esp32/procpu -p always example-app --sysbuild -- '-DSB_CONFIG_BOOT_SIGNATURE_KEY_FILE="/Users/kapil.sachdeva/Desktop/Dev/myoss/zephyr-upgrade-mcumgr/assets/bootloader-key.pem"' '-DEXTRA_CONF_FILE=transport-serial.conf' '-DCONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION="0.2.0+3"' '-DCONFIG_MCUBOOT_SIGNATURE_KEY_FILE="/Users/kapil.sachdeva/Desktop/Dev/myoss/zephyr-upgrade-mcumgr/assets/app-key.pem"'
 ```
 
-> Passing cmake extra args is flaky, a good to verify if our intended configs made it or not
-
 ```bash
 # verify
 grep CONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION build/example-app/zephyr/.config
@@ -75,7 +71,7 @@ grep CONFIG_MCUMGR_TRANSPORT_UART build/example-app/zephyr/.config
 
 ```bash
 # Let's read the state of the image
-# You should only one slot0
+# You should only see slot0
 uv run smpmgr --port /dev/tty.usbserial-0001 --baudrate 115200 image state-read
 ```
 
@@ -150,4 +146,43 @@ uv run west espressif monitor
 ```bash
 # or state-read to see that new image must be active
 uv run smpmgr --port /dev/tty.usbserial-0001 --baudrate 115200 image state-read
+```
+
+## Important Config items
+
+
+```bash
+# Defined in prj.conf
+
+# Direct dependencies of MCUMGR
+CONFIG_NET_BUF=y
+CONFIG_ZCBOR=y
+
+CONFIG_MCUMGR=y
+
+# This enables image management commands
+CONFIG_FLASH=y
+CONFIG_FLASH_MAP=y
+CONFIG_STREAM_FLASH=y
+CONFIG_IMG_MANAGER=y
+CONFIG_MCUMGR_GRP_IMG=y
+
+# we need to turn this ON otherwise smpmgr fails on state-write
+# confirmation
+CONFIG_MCUMGR_GRP_OS=y
+
+# Bootloader specific settings
+CONFIG_BOOTLOADER_MCUBOOT=y
+CONFIG_MCUBOOT_IMGTOOL_SIGN_VERSION="0.1.0+2"
+```
+
+```bash
+# Defined in transport-serial.conf
+
+# Deps of CONFIG_MCUMGR_TRANSPORT_UART
+CONFIG_CONSOLE=y
+CONFIG_BASE64=y
+CONFIG_CRC=y
+
+CONFIG_MCUMGR_TRANSPORT_UART=y
 ```
